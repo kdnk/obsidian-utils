@@ -33,5 +33,17 @@ export default class UtilsPlugin extends Plugin {
 				editor.exec("indentLess");
 			},
 		});
+
+		this.addCommand({
+			id: "swap-line-up",
+			name: "swap line up",
+			editorCallback: (editor) => editor.exec("swapLineUp"),
+		});
+
+		this.addCommand({
+			id: "swap-line-down",
+			name: "swap line down",
+			editorCallback: (editor) => editor.exec("swapLineDown"),
+		});
 	}
 }
