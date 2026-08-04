@@ -1,4 +1,4 @@
-import { App, Editor, Plugin, PluginManifest, Platform } from "obsidian";
+import { App, Editor, Plugin, PluginManifest } from "obsidian";
 
 // Remember to rename these classes and interfaces!
 
@@ -46,17 +46,5 @@ export default class UtilsPlugin extends Plugin {
 			editorCallback: (editor) => editor.exec("swapLineDown"),
 		});
 
-		this.app.workspace.onLayoutReady(() => {
-			const closeOthersTabGroupDefinition =
-				// @ts-expect-error
-				this.app?.commands?.commands?.[
-					"workspace:close-others-tab-group"
-				];
-			if (!closeOthersTabGroupDefinition) return;
-			if (Platform.isMobile) return;
-			if (Platform.isMobileApp) return;
-
-			closeOthersTabGroupDefinition.checkCallback(false);
-		});
 	}
 }
