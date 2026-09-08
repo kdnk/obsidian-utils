@@ -61,7 +61,7 @@ export default class UtilsPlugin extends Plugin {
 		});
 		this.addCommand({
 			id: "make-file-names-sync-safe",
-			name: "ファイル名の互換性をチェック・一括修正",
+			name: "Check and fix filename compatibility",
 			callback: async () => {
 				await safeNames.whenIdle();
 				if (active) new SafeNameModal(this.app, safeNames).open();

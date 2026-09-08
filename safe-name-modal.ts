@@ -21,16 +21,16 @@ export class SafeNameModal extends Modal {
 		const content = this.contentEl;
 		content.empty();
 		content.addClass("utils-safe-names");
-		content.createEl("h2", { text: "ファイル名の互換性をチェック" });
-		content.createEl("p", { text: "禁止記号・絵文字・余分なドット・長すぎる名前を修正し、重複には連番を付けます。日本語と拡張子は保持します。新規作成・名前変更されたファイルには自動で適用されます。" });
-		content.createEl("p", { text: "リンクの更新には、設定 → ファイルとリンク →「内部リンクを常に更新」が必要です。設定・隠しフォルダは対象外です。" });
+		content.createEl("h2", { text: "Check filename compatibility" });
+		content.createEl("p", { text: "Fix reserved characters, emoji, extra dots, and overly long names. Numbered suffixes prevent duplicates. Japanese characters and file extensions are preserved. New and renamed files are fixed automatically." });
+		content.createEl("p", { text: "To update links, enable Settings → Files and links → Automatically update internal links. Configuration and hidden folders are excluded." });
 		const { changes, skipped } = this.preview;
-		content.createEl("p", { text: changes.length ? `変更予定: ${changes.length}件（フォルダの変更には中のファイルの移動も含まれます）` : "修正が必要なファイル名はありません。" });
+		content.createEl("p", { text: changes.length ? `Planned renames: ${changes.length}. Renaming a folder also moves the files inside it.` : "No filenames need fixing." });
 		if (changes.length) {
 			const table = content.createEl("table");
 			const header = table.createEl("thead").createEl("tr");
-			header.createEl("th", { text: "変更前" });
-			header.createEl("th", { text: "変更後" });
+			header.createEl("th", { text: "Before" });
+			header.createEl("th", { text: "After" });
 			const body = table.createEl("tbody");
 			for (const change of changes.slice(this.page * PAGE_SIZE, (this.page + 1) * PAGE_SIZE)) {
 				const row = body.createEl("tr");
@@ -38,50 +38,50 @@ export class SafeNameModal extends Modal {
 				row.createEl("td", { text: change.newPath });
 			}
 			if (changes.length > PAGE_SIZE) {
-				new Setting(content).setName(`${this.page + 1} / ${Math.ceil(changes.length / PAGE_SIZE)} ページ`)
-					.addButton(button => button.setButtonText("前へ").setDisabled(this.page === 0).onClick(() => { this.page--; this.render(); }))
-					.addButton(button => button.setButtonText("次へ").setDisabled((this.page + 1) * PAGE_SIZE >= changes.length).onClick(() => { this.page++; this.render(); }));
+				new Setting(content).setName(`Page ${this.page + 1} of ${Math.ceil(changes.length / PAGE_SIZE)}`)
+					.addButton(button => button.setButtonText("Previous").setDisabled(this.page === 0).onClick(() => { this.page--; this.render(); }))
+					.addButton(button => button.setButtonText("Next").setDisabled((this.page + 1) * PAGE_SIZE >= changes.length).onClick(() => { this.page++; this.render(); }));
 			}
 		}
 		if (skipped.length) {
 			const details = content.createEl("details");
-			details.createEl("summary", { text: `自動修正できない名前: ${skipped.length}件` });
+			details.createEl("summary", { text: `Names requiring manual attention: ${skipped.length}` });
 			const list = details.createEl("ul");
 			for (const item of skipped) list.createEl("li", { text: `${item.path}: ${item.reason}` });
 		}
 		new Setting(content)
-			.addButton(button => button.setButtonText("再スキャン").onClick(() => { this.preview = this.service.preview(); this.page = 0; this.render(); }))
-			.addButton(button => button.setButtonText(`全${changes.length}件を修正`).setCta().setDisabled(!changes.length).onClick(() => { void this.apply(); }))
-			.addButton(button => button.setButtonText("閉じる").onClick(() => this.close()));
+			.addButton(button => button.setButtonText("Rescan").onClick(() => { this.preview = this.service.preview(); this.page = 0; this.render(); }))
+			.addButton(button => button.setButtonText(`Fix all ${changes.length}`).setCta().setDisabled(!changes.length).onClick(() => { void this.apply(); }))
+			.addButton(button => button.setButtonText("Close").onClick(() => this.close()));
 	}
 
 	private async apply(): Promise<void> {
 		if (this.busy || this.closed) return;
 		this.busy = true;
 		this.contentEl.empty();
-		this.contentEl.createEl("h2", { text: "ファイル名を修正中" });
-		const status = this.contentEl.createEl("p", { text: `0 / ${this.preview.changes.length}件` });
+		this.contentEl.createEl("h2", { text: "Fixing filenames" });
+		const status = this.contentEl.createEl("p", { text: `Renamed: 0 / ${this.preview.changes.length}` });
 		status.setAttribute("aria-live", "polite");
-		new Setting(this.contentEl).addButton(button => button.setButtonText("停止して閉じる").onClick(() => this.close()));
+		new Setting(this.contentEl).addButton(button => button.setButtonText("Stop and close").onClick(() => this.close()));
 		const result = await this.service.apply(this.preview, done => {
-			if (!this.closed) status.setText(`${done} / ${this.preview.changes.length}件`);
+			if (!this.closed) status.setText(`Renamed: ${done} / ${this.preview.changes.length}`);
 		}, () => this.closed);
 		this.busy = false;
-		const summary = `${result.completed.length}件を変更しました。${result.cancelled ? "残りの処理は停止しました。" : ""}`;
+		const summary = `Renamed: ${result.completed.length}.${result.cancelled ? " Remaining operations were stopped." : ""}`;
 		new Notice(result.error ? `${summary}\n${result.error}` : summary, result.error ? 10000 : 5000);
 		if (this.closed) return;
 		this.contentEl.empty();
-		this.contentEl.createEl("h2", { text: result.error ? "修正を停止しました" : "修正結果" });
+		this.contentEl.createEl("h2", { text: result.error ? "Filename repair stopped" : "Filename repair results" });
 		this.contentEl.createEl("p", { text: summary });
 		if (result.error) this.contentEl.createEl("p", { text: result.error });
 		if (result.completed.length) {
 			const details = this.contentEl.createEl("details");
-			details.createEl("summary", { text: "実行した名前変更" });
+			details.createEl("summary", { text: "Completed renames" });
 			const list = details.createEl("ul");
 			for (const item of result.completed) list.createEl("li", { text: `${item.from} → ${item.to}` });
 		}
 		new Setting(this.contentEl)
-			.addButton(button => button.setButtonText("再スキャン").onClick(() => { this.preview = this.service.preview(); this.page = 0; this.render(); }))
-			.addButton(button => button.setButtonText("閉じる").onClick(() => this.close()));
+			.addButton(button => button.setButtonText("Rescan").onClick(() => { this.preview = this.service.preview(); this.page = 0; this.render(); }))
+			.addButton(button => button.setButtonText("Close").onClick(() => this.close()));
 	}
 }

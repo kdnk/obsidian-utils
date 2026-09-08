@@ -17,8 +17,8 @@ Only references that Obsidian already resolves are updated. For example, a
 Markdown link containing `%3F` instead of a literal `?` may already be unresolved
 before a rename; this plugin does not repair those broken references.
 
-For existing files, run **Utils: ファイル名の互換性をチェック・一括修正** from
-the command palette. Review the before/after paths, then click **全N件を修正**.
+For existing files, run **Utils: Check and fix filename compatibility** from
+the command palette. Review the before/after paths, then click **Fix all N**.
 The preview is paginated; the button applies every listed change, including other
 pages. Closing a preview makes no changes. Closing a running batch stops it after
 the current operation; already completed renames remain applied.

@@ -58,11 +58,11 @@ export class SafeNameService {
 				this.pending.clear();
 				const preview = this.preview(targets);
 				const result = await this.perform(preview);
-				if (result.error) new Notice(`ファイル名の自動修正を停止しました: ${result.error}`, 10000);
-				else if (preview.skipped.length) new Notice(`自動修正できない名前があります: ${preview.skipped[0].path}\n${preview.skipped[0].reason}`, 10000);
-				else if (result.completed.length) new Notice(`${result.completed.length}件のファイル・フォルダ名を安全な名前に変更しました。`);
+				if (result.error) new Notice(`Automatic filename repair stopped: ${result.error}`, 10000);
+				else if (preview.skipped.length) new Notice(`A filename requires manual attention: ${preview.skipped[0].path}\n${preview.skipped[0].reason}`, 10000);
+				else if (result.completed.length) new Notice(`Automatic filename repair completed. Renamed: ${result.completed.length}.`);
 			});
-			this.queue = job.catch(error => { new Notice(`ファイル名の自動修正に失敗しました: ${String(error)}`, 10000); });
+			this.queue = job.catch(error => { new Notice(`Automatic filename repair failed: ${String(error)}`, 10000); });
 		}, 1000);
 	}
 
@@ -75,7 +75,7 @@ export class SafeNameService {
 
 	private validateSource(change: BoundChange): void {
 		if (change.file.path !== change.path || this.app.vault.getAbstractFileByPath(change.path) !== change.file) {
-			throw new Error("一覧の作成後にファイルが移動・削除されています。再スキャンしてください。");
+			throw new Error("A file was moved or deleted after the preview was created. Rescan and try again.");
 		}
 	}
 
@@ -90,7 +90,7 @@ export class SafeNameService {
 		const listed = await this.app.vault.adapter.list(parentPath(change.path));
 		const collision = [...listed.files, ...listed.folders].some(path => path !== change.path && nameKey(path) === nameKey(target));
 		if (collision || await this.app.vault.adapter.exists(target)) {
-			throw new Error(`変更先が既に存在します: ${target}。再スキャンしてください。`);
+			throw new Error(`The destination already exists: ${target}. Rescan and try again.`);
 		}
 	}
 
@@ -102,7 +102,7 @@ export class SafeNameService {
 		// Missing settings use Obsidian's default (false). Only explicit opt-in is safe.
 		if (!settings || typeof settings !== "object" || Array.isArray(settings)
 			|| (settings as { alwaysUpdateLinks?: unknown }).alwaysUpdateLinks !== true) {
-			throw new Error("設定 → ファイルとリンク →「内部リンクを常に更新」を有効にしてください。");
+			throw new Error("Enable Settings → Files and links → Automatically update internal links.");
 		}
 	}
 
@@ -135,7 +135,7 @@ export class SafeNameService {
 				} catch (error) {
 					if (change.file.path === target && this.app.vault.getAbstractFileByPath(target) === change.file) {
 						result.completed.push({ from: change.path, to: target });
-						throw new Error(`名前は変更済みですが、リンク更新が完了していない可能性があります。参照元を確認してください。${String(error)}`);
+						throw new Error(`The file or folder was renamed, but link updates may be incomplete. Check notes that reference it. ${String(error)}`);
 					}
 					throw error;
 				} finally {

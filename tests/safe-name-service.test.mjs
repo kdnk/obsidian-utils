@@ -52,7 +52,7 @@ test("disabled link updating prevents both manual and automatic destructive rena
 	app.updateLinks = false;
 	const service = new SafeNameService(app);
 	const result = await service.apply(service.preview());
-	assert.match(result.error, /内部リンク/);
+	assert.match(result.error, /Automatically update internal links/);
 	assert.equal(calls.length, 0);
 });
 
@@ -158,6 +158,6 @@ test("a successful move followed by a link-update error is reported as moved wit
 	const service = new SafeNameService(app);
 	const result = await service.apply(service.preview());
 	assert.deepEqual(result.completed, [{ from: "a?.md", to: "a_.md" }]);
-	assert.match(result.error, /リンク/);
+	assert.match(result.error, /link updates may be incomplete/);
 	assert.ok(files.has("b?.md"));
 });

@@ -27,7 +27,7 @@ function splitName(name: string, folder: boolean): [string, string] {
 
 function fitName(stem: string, extension: string, suffix = ""): string {
 	const budget = MAX_NAME_BYTES - encoder.encode(extension + suffix).length;
-	if (budget < 1) throw new Error("拡張子が長すぎるため、拡張子を保った名前に変更できません。");
+	if (budget < 1) throw new Error("The file extension is too long to preserve within the filename length limit.");
 	let result = "";
 	let size = 0;
 	for (const char of stem) {
@@ -82,7 +82,7 @@ export function buildRenamePlan(entries: NameEntry[], configDir = ".obsidian", t
 			try {
 				const name = safeName(oldName, entry.folder);
 				if (configDir.startsWith(`${entry.path}/`)) {
-					if (name !== oldName) plan.skipped.push({ path: entry.path, reason: "設定フォルダを含むため変更しません。" });
+					if (name !== oldName) plan.skipped.push({ path: entry.path, reason: "Skipped because this folder contains the configuration folder." });
 					claimed.add(nameKey(oldName));
 					continue;
 				}

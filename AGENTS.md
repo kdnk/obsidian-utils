@@ -5,6 +5,11 @@
 - Use GitButler (`but`) for version-control operations in this repository.
 - Read-only Git commands may be used for inspection.
 
+## Command names
+
+- Write command palette display names in English.
+- Use English for preview text, buttons, progress, result summaries, notices, and error messages.
+
 ## Obsidian file operations
 
 - Register automatic file-creation handlers after `workspace.onLayoutReady`; vault loading emits `create` events for existing files. Preserve restored note tabs.
