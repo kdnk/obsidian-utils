@@ -1,7 +1,7 @@
 {
 	"id": "utils",
 	"name": "Utils",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"minAppVersion": "0.15.0",
 	"description": "Editing utilities and automatic filename compatibility repair for notes, attachments, and folders.",
 	"author": "Obsidian",
