@@ -1,94 +1,115 @@
-# Obsidian Sample Plugin
+# Obsidian Utils
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+Small editing utilities and automatic filename compatibility repair for Obsidian.
+The plugin supports desktop and mobile.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## Safe filenames
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+While the plugin is enabled, newly created or renamed notes, attachments, and
+folders are automatically given names suitable for syncing across macOS, Android,
+and Windows. No character-by-character configuration is required.
 
-## First time developing plugins?
+Enable **Settings → Files and links → Automatically update internal links** first.
+If this setting is off or cannot be verified, the plugin stops without renaming.
+It uses Obsidian's `FileManager.renameFile` to update existing links and image
+references, and does not change that setting itself.
+Only references that Obsidian already resolves are updated. For example, a
+Markdown link containing `%3F` instead of a literal `?` may already be unresolved
+before a rename; this plugin does not repair those broken references.
 
-Quick starting guide for new plugin devs:
+For existing files, run **Utils: ファイル名の互換性をチェック・一括修正** from
+the command palette. Review the before/after paths, then click **全N件を修正**.
+The preview is paginated; the button applies every listed change, including other
+pages. Closing a preview makes no changes. Closing a running batch stops it after
+the current operation; already completed renames remain applied.
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+### Common rules
 
-## Releasing new releases
+| Input | Result |
+| --- | --- |
+| Filesystem-reserved symbols (`<`, `>`, `:`, `"`, `/`, `\`, pipe, `?`, `*`), ASCII control characters, DEL | Replace each with `_` |
+| Obsidian link delimiters (`#`, `^`, `[`, `]`) | Replace with `_` |
+| Emoji, including joined emoji, flags and modifiers | Replace with `_` |
+| Dots in the filename stem or in folder names | Replace with `_`; keep the final file extension |
+| Leading/trailing whitespace or dots | Remove |
+| Windows device names (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`, including superscript 1/2/3) | Prefix with `_` |
+| Long names | Shorten the stem to fit 255 UTF-8 bytes, including extension and collision suffix |
+| Existing equivalent name | Add ` (2)`, ` (3)`, etc. before the final extension |
+| Japanese, letters, digits, internal spaces, hyphens and underscores | Keep, subject to the byte limit |
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+Examples:
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+```text
+What Is an AI Anyway?  Mustafa Suleyman  TED.md
+→ What Is an AI Anyway_  Mustafa Suleyman  TED.md
 
-## Adding your plugin to the community plugin list
+attachments/1*image.png
+→ attachments/1_image.png
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
-
-## How to use
-
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint .\src\`
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+写真📷.2026.09.png
+→ 写真__2026_09.png
 ```
 
-If you have multiple URLs, you can also do:
+Collision checks include both files and folders, case differences, Unicode
+normalization variants and uppercase expansions such as `ß`/`SS`. Existing names
+are reserved before assigning replacements. Only the final extension is kept
+unchanged when already safe: `archive.tar.gz` becomes `archive_tar.gz`.
+If an extension leaves insufficient room for a safe name, the item is reported
+for manual attention rather than changing its file type.
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
+### Automatic repair and limits
+
+- Monitoring starts after the workspace has loaded, so opening a vault does not
+  sweep existing files or change restored note tabs. Use the command for old files.
+- Repair waits for one second without file/metadata activity, to allow importers
+  to finish creating attachments and their references. Incoming Sync creations
+  and renames are handled like other vault events.
+- Files and folders beginning with `.` are excluded, along with the configured
+  Obsidian settings directory and any ancestor that would move it.
+- Operations run sequentially, with children renamed before their folders.
+  Targets are checked again on disk before each rename. If a file has moved, a
+  collision appears, or an operation fails, the batch stops and reports completed
+  changes. Rescan to get an updated plan.
+- If a file moves successfully but updating links fails, the result explicitly
+  reports that the name changed and that its references need checking.
+- This is filename repair, not a Sync replacement. It cannot change a remote file
+  that has not downloaded to the current device; run the bulk command on the Mac
+  where the file exists. It does not solve Sync size limits, permissions, or
+  references outside Obsidian. A plugin that writes a reference to an old path
+  after the quiet period can still require its own import coordination.
+
+The rules follow [Obsidian Sync's filename guidance](https://obsidian.md/help/sync/messages),
+[Android's filename implementation](https://android.googlesource.com/platform/packages/providers/MediaProvider/+/refs/heads/main/src/com/android/providers/media/util/FileUtils.java),
+and [Apple's APFS filename behavior](https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/APFS_Guide/FAQ/FAQ.html).
+Extra dots and emoji are handled conservatively because Obsidian documents
+problems with them on some Android devices.
+
+## Editor commands
+
+- Indent More / Indent Less
+- swap line up / swap line down
+
+## Development
+
+Use Node.js 22 or newer for development and the Node test runner.
+
+```sh
+npm install
+npm test
+npm run build
 ```
 
-## API Documentation
+`npm run dev` rebuilds when source files change. Tests cover the reported note and
+image names, Unicode/length/collision rules, nested folders, background events,
+startup preservation, stale previews, cancellation and partial failures.
+Obsidian APIs are replaced at the test boundary; Sync on a physical Android
+phone is not exercised by these tests.
+An isolated Obsidian desktop vault was also used to verify the bulk preview,
+automatic note/image/folder renames, and updates to resolved wikilinks and Markdown
+links without changing the user's vault.
 
-See https://github.com/obsidianmd/obsidian-api
+## Install a local build
+
+Copy `main.js`, `manifest.json`, and `styles.css` into your vault's
+`.obsidian/plugins/utils/` directory, then enable or reload **Utils** in Obsidian.
+The generated `main.js` is excluded from version control.

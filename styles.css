@@ -1,8 +1,17 @@
-/*
+.utils-safe-names table {
+	width: 100%;
+	table-layout: fixed;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.utils-safe-names td,
+.utils-safe-names li {
+	overflow-wrap: anywhere;
+	white-space: pre-wrap;
+}
 
-If your plugin does not need CSS, delete this file.
-
-*/
+.utils-safe-names td,
+.utils-safe-names th {
+	padding: var(--size-4-2);
+	text-align: left;
+	vertical-align: top;
+}

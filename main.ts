@@ -1,4 +1,6 @@
 import { App, Editor, Plugin, PluginManifest } from "obsidian";
+import { SafeNameService } from "./safe-name-service";
+import { SafeNameModal } from "./safe-name-modal";
 
 // Remember to rename these classes and interfaces!
 
@@ -18,6 +20,18 @@ export default class UtilsPlugin extends Plugin {
 	}
 
 	async onload() {
+		const safeNames = new SafeNameService(this.app);
+		let active = true;
+		this.register(() => { active = false; safeNames.dispose(); });
+		// Vault loading emits create events for existing files. Only watch later changes.
+		this.app.workspace.onLayoutReady(() => {
+			if (!active) return;
+			this.registerEvent(this.app.vault.on("create", file => safeNames.enqueue(file)));
+			this.registerEvent(this.app.vault.on("rename", file => safeNames.enqueue(file)));
+			this.registerEvent(this.app.vault.on("modify", () => safeNames.postpone()));
+			this.registerEvent(this.app.metadataCache.on("resolved", () => safeNames.postpone()));
+		});
+
 		this.addCommand({
 			id: "indent-more",
 			name: "Indent More",
@@ -44,6 +58,14 @@ export default class UtilsPlugin extends Plugin {
 			id: "swap-line-down",
 			name: "swap line down",
 			editorCallback: (editor) => editor.exec("swapLineDown"),
+		});
+		this.addCommand({
+			id: "make-file-names-sync-safe",
+			name: "ファイル名の互換性をチェック・一括修正",
+			callback: async () => {
+				await safeNames.whenIdle();
+				if (active) new SafeNameModal(this.app, safeNames).open();
+			},
 		});
 
 	}

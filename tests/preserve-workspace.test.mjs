@@ -1,82 +1,50 @@
 import assert from "node:assert/strict";
-import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
-import { build } from "esbuild";
+import test from "node:test";
+import { loadModule, fakeApp } from "./helpers.mjs";
 
-const obsidianApiStub = {
-	name: "obsidian-api-stub",
-	setup(builder) {
-		builder.onResolve({ filter: /^obsidian$/ }, () => ({
-			path: "obsidian",
-			namespace: "obsidian-api-stub",
-		}));
-		builder.onLoad(
-			{ filter: /.*/, namespace: "obsidian-api-stub" },
-			() => ({
-				loader: "js",
-				contents: `
-					export class Plugin {
-						constructor(app) {
-							this.app = app;
-							this.registeredCommands = [];
-						}
-						addCommand(command) {
-							this.registeredCommands.push(command);
-						}
-					}
-					export const Platform = {
-						isMobile: false,
-						isMobileApp: false,
-					};
-				`,
-			}),
-		);
-	},
-};
+const { default: UtilsPlugin } = await loadModule("../main.ts");
 
-const { outputFiles } = await build({
-	entryPoints: [fileURLToPath(new URL("../main.ts", import.meta.url))],
-	bundle: true,
-	format: "cjs",
-	platform: "node",
-	plugins: [obsidianApiStub],
-	write: false,
+test("startup preserves open notes and editor commands without bulk renaming existing files", async () => {
+	const { app, ready, calls } = fakeApp(["existing?.md"]);
+	const leaves = ["one.md", "two.md"].map(path => ({
+		path, view: { getViewType: () => "markdown" },
+		detach() { leaves.splice(leaves.indexOf(this), 1); },
+	}));
+	const original = [...leaves];
+	app.workspace.iterateAllLeaves = callback => [...leaves].forEach(callback);
+	app.workspace.getLeavesOfType = () => [...leaves];
+	app.workspace.getLeaf = () => { throw new Error("startup must not open new tabs"); };
+	app.workspace.detachLeavesOfType = () => { leaves.length = 0; };
+	const plugin = new UtilsPlugin(app, {});
+	await plugin.onload();
+	for (const callback of ready) callback();
+	assert.deepEqual(leaves, original, "restored note tabs must remain open");
+	assert.equal(calls.length, 0, "loading the vault must not trigger renames");
+	for (const id of ["indent-more", "indent-less", "swap-line-up", "swap-line-down"]) {
+		assert.ok(plugin.registeredCommands.some(command => command.id === id));
+	}
+	plugin.cleanups.forEach(callback => callback());
 });
 
-const pluginModule = { exports: {} };
-const loadPlugin = new Function(
-	"module",
-	"exports",
-	"require",
-	outputFiles[0].text,
-);
-loadPlugin(
-	pluginModule,
-	pluginModule.exports,
-	createRequire(import.meta.url),
-);
-
-const layoutReadyCallbacks = [];
-const app = {
-	workspace: {
-		onLayoutReady(callback) {
-			layoutReadyCallbacks.push(callback);
-		},
-	},
-};
-
-const UtilsPlugin = pluginModule.exports.default;
-const plugin = new UtilsPlugin(app, {});
-await plugin.onload();
-
-assert.equal(
-	layoutReadyCallbacks.length,
-	0,
-	"plugin startup must not register a layout-ready callback that changes tabs",
-);
-
-assert.deepEqual(
-	plugin.registeredCommands.map(({ id }) => id),
-	["indent-more", "indent-less", "swap-line-up", "swap-line-down"],
-	"existing editor commands must remain registered",
-);
+test("creation and rename events are registered after layout, and detached on unload", async t => {
+	t.mock.timers.enable({ apis: ["setTimeout"] });
+	const { app, ready, emit, add, files } = fakeApp();
+	const plugin = new UtilsPlugin(app, {});
+	await plugin.onload();
+	emit("create", add("during-load?.md"));
+	ready.forEach(callback => callback());
+	emit("create", add("new*.png"));
+	t.mock.timers.tick(1000);
+	for (let i = 0; i < 50; i++) await Promise.resolve();
+	assert.ok(files.has("new_.png"));
+	assert.ok(files.has("during-load?.md"));
+	await app.fileManager.renameFile(files.get("new_.png"), "renamed?.png");
+	t.mock.timers.tick(1000);
+	for (let i = 0; i < 50; i++) await Promise.resolve();
+	assert.ok(files.has("renamed_.png"));
+	plugin.cleanups.forEach(callback => callback());
+	emit("create", add("after-unload?.md"));
+	t.mock.timers.tick(1000);
+	for (let i = 0; i < 50; i++) await Promise.resolve();
+	assert.ok(files.has("after-unload?.md"));
+});
